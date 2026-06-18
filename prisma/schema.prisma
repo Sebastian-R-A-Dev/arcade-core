@@ -1,0 +1,330 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppType {
+  quiz
+  administration
+  chat
+}
+
+enum ImageKind {
+  generic
+  avatar
+}
+
+/** Catálogo global de roles (slug estable). */
+model Role {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(64)
+  label     String   @db.VarChar(128)
+  createdAt DateTime @default(now()) @map("created_at")
+  users     User[]
+
+  @@map("roles")
+}
+
+enum AccountEventType {
+  password_reset_required
+}
+
+enum AccountEventStatus {
+  pending
+  completed
+  cancelled
+}
+
+model User {
+  id            Int                @id @default(autoincrement())
+  appId         Int                @map("app_id")
+  roleId        Int                @map("role_id")
+  email         String
+  password      String
+  isActive      Boolean            @default(true) @map("is_active")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  profile       UserProfile?
+  scores        Score[]
+  refreshTokens RefreshToken[]
+  app           App                @relation(fields: [appId], references: [id], onDelete: Cascade)
+  role          Role               @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  accountEventsTarget    UserAccountEvent[] @relation("AccountEventTarget")
+  accountEventsInitiated UserAccountEvent[] @relation("AccountEventInitiator")
+  progress               UserProgress?
+  gameSessions           GameSession[]
+  chatPrivateLow         ChatPrivateConversation[] @relation("ChatPrivateLow")
+  chatPrivateHigh        ChatPrivateConversation[] @relation("ChatPrivateHigh")
+
+  @@unique([email, appId], map: "users_email_app_id_key")
+  @@index([roleId])
+  @@map("users")
+}
+
+/** Auditoría de acciones sobre cuentas (p. ej. reset de contraseña pendiente de completar en login). */
+model UserAccountEvent {
+  id              Int                @id @default(autoincrement())
+  type            AccountEventType
+  status          AccountEventStatus @default(pending)
+  targetUserId    Int                @map("target_user_id")
+  initiatedById   Int?               @map("initiated_by_id")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  completedAt     DateTime?          @map("completed_at")
+  targetUser      User               @relation("AccountEventTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  initiatedBy     User?              @relation("AccountEventInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, status])
+  @@index([initiatedById])
+  @@map("user_account_events")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model UserProfile {
+  id            Int     @id @default(autoincrement())
+  userId        Int     @unique @map("user_id")
+  appId         Int     @map("app_id")
+  nickname      String  @db.VarChar(64)
+  avatarUrl     String? @map("avatar_url") @db.VarChar(2048)
+  avatarImageId Int?    @map("avatar_image_id")
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app           App     @relation(fields: [appId], references: [id], onDelete: Cascade)
+  avatarImage   Image?  @relation(fields: [avatarImageId], references: [id], onDelete: SetNull)
+
+  @@unique([appId, nickname], map: "user_profiles_app_id_nickname_key")
+  @@index([avatarImageId])
+  @@map("user_profiles")
+}
+
+model App {
+  id            Int          @id @default(autoincrement())
+  name          String       @unique
+  url           String       @db.VarChar(2048)
+  type          AppType
+  isActive      Boolean      @default(true) @map("is_active")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  users         User[]
+  userProfiles  UserProfile[]
+  questions     Question[]
+  scores        Score[]
+  difficulties  Difficulty[]
+  gameSessions             GameSession[]
+  chatPrivateConversations ChatPrivateConversation[]
+  levelMilestoneMessages   LevelMilestoneMessage[]
+
+  @@map("apps")
+}
+
+/** Conversaciones privadas 1-a-1 para apps tipo chat (JSON ≤50 mensajes). */
+model ChatPrivateConversation {
+  id           Int      @id @default(autoincrement())
+  appId        Int      @map("app_id")
+  userLowId    Int      @map("user_low_id")
+  userHighId   Int      @map("user_high_id")
+  messagesJson Json     @map("messages_json")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  app      App  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  userLow  User @relation("ChatPrivateLow", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHigh User @relation("ChatPrivateHigh", fields: [userHighId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, userLowId, userHighId])
+  @@index([appId, userLowId])
+  @@index([appId, userHighId])
+  @@map("chat_private_conversations")
+}
+
+model Difficulty {
+  id        Int        @id @default(autoincrement())
+  appId     Int        @map("app_id")
+  name      String     @db.VarChar(64)
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  app       App        @relation(fields: [appId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([appId, name], map: "difficulties_app_id_name_key")
+  @@index([appId])
+  @@map("difficulties")
+}
+
+/** Catálogo global de tipos de pregunta (slug estable para UI). Solo se enlaza desde Question. */
+model QuestionTypeCatalog {
+  id          Int        @id @default(autoincrement())
+  slug        String     @unique @db.VarChar(64)
+  label       String     @db.VarChar(128)
+  description String?    @db.VarChar(512)
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  questions   Question[]
+
+  @@map("question_types")
+}
+
+/** Librería global en Supabase: generic (preguntas) o avatar (perfiles). */
+model Image {
+  id             Int           @id @default(autoincrement())
+  uuid           String        @unique @db.Uuid
+  kind           ImageKind     @default(generic)
+  displayName    String        @map("display_name") @db.VarChar(256)
+  publicUrl      String        @map("public_url") @db.VarChar(2048)
+  storagePath    String        @map("storage_path") @db.VarChar(512)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  questions      Question[]
+  profileAvatars UserProfile[]
+
+  @@index([kind, createdAt])
+  @@map("images")
+}
+
+/** Pistas de audio globales (Supabase bucket `audios-for-apps`). */
+model AppAudio {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @db.Uuid
+  displayName String   @map("display_name") @db.VarChar(256)
+  publicUrl   String   @map("public_url") @db.VarChar(2048)
+  storagePath String   @map("storage_path") @db.VarChar(512)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("app_audios")
+}
+
+model Question {
+  id             Int                 @id @default(autoincrement())
+  appId          Int                 @map("app_id")
+  difficultyId   Int                 @map("difficulty_id")
+  questionTypeId Int                 @map("question_type_id")
+  question       Json
+  options        Json
+  answer         String
+  imageUrl       String?             @map("image_url") @db.VarChar(2048)
+  imageName      String?             @map("image_name") @db.VarChar(256)
+  imageId        Int?                @map("image_id")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  app            App                 @relation(fields: [appId], references: [id], onDelete: Cascade)
+  difficulty     Difficulty          @relation(fields: [difficultyId], references: [id], onDelete: Restrict)
+  questionType   QuestionTypeCatalog @relation(fields: [questionTypeId], references: [id], onDelete: Restrict)
+  libraryImage   Image?              @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  @@index([appId, difficultyId])
+  @@index([questionTypeId])
+  @@map("questions")
+}
+
+model Score {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  appId     Int      @map("app_id")
+  score     Int
+  maxScore  Int      @map("max_score")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([userId, appId])
+  @@map("scores")
+}
+
+/** Mensaje de estado al alcanzar un hito de nivel (0, 100, 200, … 1000), por app. */
+model LevelMilestoneMessage {
+  id        Int      @id @default(autoincrement())
+  appId     Int      @map("app_id")
+  level     Int
+  message   String   @db.VarChar(512)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, level])
+  @@index([appId])
+  @@map("level_milestone_messages")
+}
+
+/** Progresión del jugador: nivel 0–1000 y XP hacia el siguiente nivel. */
+model UserProgress {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique @map("user_id")
+  level         Int      @default(0)
+  xp            Int      @default(0)
+  gamesPlayed   Int      @default(0) @map("games_played")
+  wins          Int      @default(0)
+  totalScore    Int      @default(0) @map("total_score")
+  bonusXpTotal  Int      @default(0) @map("bonus_xp_total")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([wins(sort: Desc), totalScore(sort: Desc)])
+  @@map("user_progress")
+}
+
+enum GameSessionStatus {
+  active
+  completed
+  failed
+}
+
+/** Partida / reto iniciado con POST /challenge/start. */
+model GameSession {
+  id              Int               @id @default(autoincrement())
+  userId          Int               @map("user_id")
+  appId           Int               @map("app_id")
+  status          GameSessionStatus @default(active)
+  totalQuestions  Int               @map("total_questions")
+  correctCount    Int               @default(0) @map("correct_count")
+  xpEarned        Int               @default(0) @map("xp_earned")
+  startedAt       DateTime          @default(now()) @map("started_at")
+  endedAt         DateTime?         @map("ended_at")
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app             App               @relation(fields: [appId], references: [id], onDelete: Cascade)
+  answerAttempts  ChallengeAnswerAttempt[]
+  questionIssues  ChallengeQuestionIssue[]
+
+  @@index([userId, appId])
+  @@index([status])
+  @@map("game_sessions")
+}
+
+/** Intentos de respuesta por pregunta dentro de una sesión (máx. 3 por pregunta). */
+model ChallengeAnswerAttempt {
+  id         Int         @id @default(autoincrement())
+  sessionId  Int         @map("session_id")
+  questionId Int         @map("question_id")
+  isCorrect  Boolean     @map("is_correct")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  session    GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, questionId])
+  @@map("challenge_answer_attempts")
+}
+
+/** Pregunta emitida en una sesión con deadline server-side. */
+model ChallengeQuestionIssue {
+  id           Int         @id @default(autoincrement())
+  sessionId    Int         @map("session_id")
+  questionId   Int         @map("question_id")
+  difficultyId Int         @map("difficulty_id")
+  issuedAt     DateTime    @default(now()) @map("issued_at")
+  expiresAt    DateTime    @map("expires_at")
+  answeredAt   DateTime?   @map("answered_at")
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId, answeredAt])
+  @@map("challenge_question_issues")
+}

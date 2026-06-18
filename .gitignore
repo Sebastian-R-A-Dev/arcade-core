@@ -9,4 +9,3 @@ csv/
 .DS_Store
 *.log
 .cursor
-prisma/
