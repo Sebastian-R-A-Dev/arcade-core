@@ -20,6 +20,7 @@ const swaggerPaths = [
   path.join(__dirname, 'paths', `apps.paths.${ext}`),
   path.join(__dirname, 'paths', `questions.paths.${ext}`),
   path.join(__dirname, 'paths', `scores.paths.${ext}`),
+  path.join(__dirname, 'paths', `chat.paths.${ext}`),
 ];
 
 export function setupSwagger(app: Express): void {

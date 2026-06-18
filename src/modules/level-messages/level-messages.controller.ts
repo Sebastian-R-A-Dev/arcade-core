@@ -3,6 +3,8 @@ import { HttpError } from '../../shared/constants/httpError.js';
 import { levelMessagesService } from './level-messages.service.js';
 import type {
   AdminCreateLevelMessageBody,
+  AdminLevelMessageMutationQuery,
+  AdminListLevelMessagesQuery,
   AdminUpsertLevelMessageBody,
   ResolveLevelMessageQuery,
 } from './level-messages.validation.js';
@@ -10,11 +12,12 @@ import type {
 export const levelMessagesController = {
   async resolve(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const level = (req.query as unknown as ResolveLevelMessageQuery).level;
-      const message = await levelMessagesService.resolveForPlayerLevel(level);
+      const { level, app_name } = req.query as unknown as ResolveLevelMessageQuery;
+      const message = await levelMessagesService.resolveForPlayerLevelByAppName(level, app_name);
       res.json({
         data: {
           level,
+          app_name,
           message,
         },
       });
@@ -23,9 +26,10 @@ export const levelMessagesController = {
     }
   },
 
-  async listAdmin(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  async listAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await levelMessagesService.listForAdmin();
+      const { app_id } = req.query as unknown as AdminListLevelMessagesQuery;
+      const data = await levelMessagesService.listForAdmin(app_id);
       res.json({ data });
     } catch (err) {
       next(err);
@@ -39,7 +43,8 @@ export const levelMessagesController = {
   ): Promise<void> {
     try {
       const level = Number(req.params.level);
-      const data = await levelMessagesService.upsertForAdmin(level, req.body.message);
+      const { app_id } = req.query as unknown as AdminLevelMessageMutationQuery;
+      const data = await levelMessagesService.upsertForAdmin(app_id, level, req.body.message);
       res.json({ data });
     } catch (err) {
       next(err);
@@ -52,7 +57,11 @@ export const levelMessagesController = {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const data = await levelMessagesService.upsertForAdmin(req.body.level, req.body.message);
+      const data = await levelMessagesService.upsertForAdmin(
+        req.body.app_id,
+        req.body.level,
+        req.body.message,
+      );
       res.status(HttpError.CREATED).json({ data });
     } catch (err) {
       next(err);
@@ -65,7 +74,8 @@ export const levelMessagesController = {
     next: NextFunction,
   ): Promise<void> {
     try {
-      await levelMessagesService.deleteForAdmin(Number(req.params.level));
+      const { app_id } = req.query as unknown as AdminLevelMessageMutationQuery;
+      await levelMessagesService.deleteForAdmin(app_id, Number(req.params.level));
       res.status(HttpError.NO_CONTENT).send();
     } catch (err) {
       next(err);

@@ -152,3 +152,58 @@ El servidor base de los paths en la UI suele estar configurado como `http://loca
 - `src/shared/`: middleware, errores, Prisma, Swagger, configuración.
 - `src/routes/index.ts`: montaje de routers bajo `/api/v1`.
 - `prisma/schema.prisma` y `prisma/migrations/`: modelo de datos y evolución.
+
+## Apps tipo chat (`CHAT-BOX`)
+
+ArcadeCore soporta apps con `AppType.chat` para chat en tiempo real (arcade-chat en `http://localhost:3003`).
+
+### Registrar la app
+
+El seed crea `CHAT-BOX` (`type: chat`, url `http://localhost:3003`). También puedes crearla desde el admin dashboard.
+
+### Auth
+
+Igual que otras apps jugador: registro/login en generic-login con `app_name: CHAT-BOX`, refresh cookie `arcade_refresh_CHAT-BOX`, Bearer en rutas REST y query `?token=` en WebSocket.
+
+### CORS
+
+Incluye `http://localhost:3003` en `CORS_ORIGINS`.
+
+### REST (`/api/v1/chat`, tag Swagger **Chat**)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/chat/private` | Lista conversaciones privadas del usuario |
+| GET | `/chat/private/:peerUserId` | Historial JSON (≤50 mensajes) |
+| POST | `/chat/presence/heartbeat` | Acumula tiempo activo para XP |
+| GET | `/chat/me` | Perfil + progreso |
+
+### WebSocket (`CHAT_WS_PATH`, default `/ws/chat`)
+
+Conectar: `ws://localhost:4000/ws/chat?token=<access_token>`
+
+**Cliente → servidor**
+
+| Evento | Payload |
+|--------|---------|
+| `chat:join` | `{}` |
+| `chat:global:send` | `{ text, image_url? }` |
+| `chat:private:send` | `{ to_user_id, text, image_url? }` |
+| `chat:presence:ping` | `{ visible: boolean }` |
+
+**Servidor → cliente**
+
+| Evento | Payload |
+|--------|---------|
+| `chat:global:message` | `{ message }` |
+| `chat:private:message` | `{ peer_user_id, message }` |
+| `chat:presence:online` | `{ users }` |
+| `chat:system` | `{ text, code? }` |
+| `chat:xp:update` | `{ level, xp, gained? }` |
+
+### Comportamiento
+
+- **Global:** efímero en RAM del proceso. Sin historial al conectar. Reinicio del servidor = sala vacía.
+- **Privados:** persistidos en `chat_private_conversations.messages_json` (FIFO, máx. 50).
+- **Imágenes:** solo URLs públicas; validación HEAD ≤10 MB (`CHAT_IMAGE_MAX_BYTES`).
+- **XP:** heartbeat cada ~60s con pestaña visible; +50 XP cada `CHAT_XP_INTERVAL_MINUTES` min (default **5**; en local usa `CHAT_XP_INTERVAL_MINUTES=2` etc.) (`UserProgress`).

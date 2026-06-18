@@ -20,17 +20,20 @@ export type UserProgressDto = ProgressSnapshot & {
   level_message: string;
 };
 
-async function toDto(row: {
-  userId: number;
-  level: number;
-  xp: number;
-  gamesPlayed: number;
-  wins: number;
-  totalScore: number;
-  bonusXpTotal: number;
-}): Promise<UserProgressDto> {
+async function toDto(
+  row: {
+    userId: number;
+    level: number;
+    xp: number;
+    gamesPlayed: number;
+    wins: number;
+    totalScore: number;
+    bonusXpTotal: number;
+  },
+  appId: number,
+): Promise<UserProgressDto> {
   const snap = toProgressSnapshot(row.level, row.xp);
-  const level_message = await levelMessagesService.resolveForPlayerLevel(row.level);
+  const level_message = await levelMessagesService.resolveForPlayerLevel(row.level, appId);
   return {
     user_id: row.userId,
     games_played: row.gamesPlayed,
@@ -45,19 +48,26 @@ async function toDto(row: {
 
 export const userProgressService = {
   async getForUser(userId: number): Promise<UserProgressDto> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { appId: true },
+    });
+    if (!user) {
+      throw new AppError('User not found', HttpError.NOT_FOUND);
+    }
     const row = await userProgressRepository.ensureForUser(userId);
-    return toDto(row);
+    return toDto(row, user.appId);
   },
 
   async listForAdmin() {
     const rows = await userProgressRepository.findManyForAdmin();
     return Promise.all(
       rows.map(async (row) => ({
-        ...(await toDto(row)),
-      email: row.user.email,
-      nickname: row.user.profile?.nickname ?? null,
-      app_id: row.user.appId,
-      app_name: row.user.app.name,
+        ...(await toDto(row, row.user.appId)),
+        email: row.user.email,
+        nickname: row.user.profile?.nickname ?? null,
+        app_id: row.user.appId,
+        app_name: row.user.app.name,
       })),
     );
   },
@@ -74,6 +84,6 @@ export const userProgressService = {
       wins: body.wins,
       totalScore: body.total_score,
     });
-    return toDto(row);
+    return toDto(row, user.appId);
   },
 };

@@ -15,6 +15,11 @@ export const swaggerDefinition = {
     { name: 'Apps', description: 'Registered applications' },
     { name: 'Questions', description: 'Quiz content per app' },
     { name: 'Scores', description: 'Gameplay history and bests' },
+    {
+      name: 'Chat',
+      description:
+        'Chat en tiempo real para apps tipo chat. REST para historial privado y heartbeat XP. WebSocket en /ws/chat (ver README).',
+    },
   ],
   info: {
     title: 'ArcadeCore API',
@@ -99,7 +104,7 @@ export const swaggerDefinition = {
             format: 'uri',
             description: 'Absolute http(s) URL where this app is served',
           },
-          type: { type: 'string', enum: ['quiz', 'administration'] },
+          type: { type: 'string', enum: ['quiz', 'administration', 'chat'] },
           is_active: { type: 'boolean' },
         },
       },
@@ -343,6 +348,60 @@ export const swaggerDefinition = {
           score: { type: 'integer' },
           max_score: { type: 'integer' },
           created_at: { type: 'string', format: 'date-time' },
+        },
+      },
+      ChatMessageDto: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          type: { type: 'string', enum: ['user', 'system'] },
+          text: { type: 'string' },
+          created_at: { type: 'string', format: 'date-time' },
+          from_user_id: { type: 'integer' },
+          image_url: { type: 'string', format: 'uri' },
+        },
+      },
+      ChatPrivateConversationSummaryDto: {
+        type: 'object',
+        properties: {
+          peer_user_id: { type: 'integer' },
+          peer_nickname: { type: 'string' },
+          peer_avatar_url: { type: 'string', nullable: true },
+          last_message: { $ref: '#/components/schemas/ChatMessageDto', nullable: true },
+          updated_at: { type: 'string', format: 'date-time' },
+        },
+      },
+      ChatPrivateHistoryDto: {
+        type: 'object',
+        properties: {
+          peer_user_id: { type: 'integer' },
+          messages: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/ChatMessageDto' },
+          },
+        },
+      },
+      ChatHeartbeatRequest: {
+        type: 'object',
+        required: ['visible'],
+        properties: {
+          visible: { type: 'boolean', description: 'Tab visible (document.visibilityState)' },
+        },
+      },
+      ChatHeartbeatResponse: {
+        type: 'object',
+        properties: {
+          progress: {
+            type: 'object',
+            properties: {
+              level: { type: 'integer' },
+              xp: { type: 'integer' },
+              xp_required_for_next_level: { type: 'integer', nullable: true },
+              xp_to_next_level: { type: 'integer', nullable: true },
+              is_max_level: { type: 'boolean' },
+            },
+          },
+          xp_gained: { type: 'integer' },
         },
       },
     },

@@ -52,7 +52,9 @@ import { adminSetUserProgressSchema } from '../user-progress/user-progress.valid
 import { levelMessagesController } from '../level-messages/level-messages.controller.js';
 import {
   adminCreateLevelMessageSchema,
+  adminLevelMessageMutationQuerySchema,
   adminLevelMilestoneParamsSchema,
+  adminListLevelMessagesQuerySchema,
   adminUpsertLevelMessageSchema,
 } from '../level-messages/level-messages.validation.js';
 
@@ -87,7 +89,7 @@ router.patch(
   userProgressController.setLevelForUser,
 );
 router.get('/account-events', accountEventsController.listAdmin);
-router.get('/level-messages', levelMessagesController.listAdmin);
+router.get('/level-messages', validateQuery(adminListLevelMessagesQuerySchema), levelMessagesController.listAdmin);
 router.post(
   '/level-messages',
   validateBody(adminCreateLevelMessageSchema),
@@ -96,12 +98,14 @@ router.post(
 router.put(
   '/level-messages/:level',
   validateParams(adminLevelMilestoneParamsSchema),
+  validateQuery(adminLevelMessageMutationQuerySchema),
   validateBody(adminUpsertLevelMessageSchema),
   levelMessagesController.upsertAdmin,
 );
 router.delete(
   '/level-messages/:level',
   validateParams(adminLevelMilestoneParamsSchema),
+  validateQuery(adminLevelMessageMutationQuerySchema),
   levelMessagesController.deleteAdmin,
 );
 router.get('/apps', adminController.listApps);

@@ -1,23 +1,30 @@
 import { prisma } from '../../shared/database/prisma.js';
 
 export const levelMessagesRepository = {
-  async findByMilestoneLevel(level: number) {
-    return prisma.levelMilestoneMessage.findUnique({ where: { level } });
+  async findByAppAndMilestoneLevel(appId: number, level: number) {
+    return prisma.levelMilestoneMessage.findUnique({
+      where: { appId_level: { appId, level } },
+    });
   },
 
-  async findMany() {
-    return prisma.levelMilestoneMessage.findMany({ orderBy: { level: 'asc' } });
+  async findManyByApp(appId: number) {
+    return prisma.levelMilestoneMessage.findMany({
+      where: { appId },
+      orderBy: { level: 'asc' },
+    });
   },
 
-  async upsert(level: number, message: string) {
+  async upsert(appId: number, level: number, message: string) {
     return prisma.levelMilestoneMessage.upsert({
-      where: { level },
-      create: { level, message },
+      where: { appId_level: { appId, level } },
+      create: { appId, level, message },
       update: { message },
     });
   },
 
-  async deleteByLevel(level: number) {
-    return prisma.levelMilestoneMessage.delete({ where: { level } });
+  async deleteByAppAndLevel(appId: number, level: number) {
+    return prisma.levelMilestoneMessage.delete({
+      where: { appId_level: { appId, level } },
+    });
   },
 };

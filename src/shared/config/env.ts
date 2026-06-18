@@ -30,7 +30,7 @@ export const env = {
   /** Allowed browser origins for credentialed CORS (comma-separated). */
   corsOrigins: (
     process.env.CORS_ORIGINS ??
-    'http://localhost:3000,http://localhost:3001,http://localhost:3002'
+    'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003'
   )
     .split(',')
     .map((s) => s.trim())
@@ -59,4 +59,24 @@ export const env = {
   /** Bucket Storage para pistas MP3 globales (`AUDIOS_FOR_APPS_BUCKET`). */
   audiosForAppsBucket:
     process.env.AUDIOS_FOR_APPS_BUCKET?.trim() || 'audios-for-apps',
+
+  /** Chat: max image size in bytes (HEAD validation). */
+  chatImageMaxBytes: Number(process.env.CHAT_IMAGE_MAX_BYTES ?? 10 * 1024 * 1024),
+  /** Chat WebSocket path. */
+  chatWsPath: process.env.CHAT_WS_PATH?.trim() || '/ws/chat',
+  /** Chat messages per user per minute. */
+  chatRateLimitPerMin: Number(process.env.CHAT_RATE_LIMIT_PER_MIN ?? 30),
+  /**
+   * Minutos de chat activo (WS + pestaña visible) para otorgar un bloque de XP.
+   * Ej. 2 en local para pruebas; omitir en prod → 5 min por defecto.
+   */
+  chatXpIntervalMinutes: (() => {
+    const raw = Number(process.env.CHAT_XP_INTERVAL_MINUTES ?? 5);
+    return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 5;
+  })(),
+  /** XP otorgada por cada intervalo completado. */
+  chatXpPerInterval: (() => {
+    const raw = Number(process.env.CHAT_XP_PER_INTERVAL ?? 50);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 50;
+  })(),
 };

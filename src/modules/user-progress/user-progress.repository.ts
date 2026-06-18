@@ -87,6 +87,16 @@ export const userProgressRepository = {
     });
   },
 
+  async applyXpGainOnly(userId: number, xpGain: number) {
+    await this.ensureForUser(userId);
+    const row = await prisma.userProgress.findUniqueOrThrow({ where: { userId } });
+    const next = applyXpGain(row.level, row.xp, xpGain);
+    return prisma.userProgress.update({
+      where: { userId },
+      data: { level: next.level, xp: next.xp },
+    });
+  },
+
   async updateByAdmin(
     userId: number,
     data: {

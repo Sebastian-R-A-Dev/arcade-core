@@ -20,7 +20,7 @@ const appHttpUrlSchema = z
 export const createAppSchema = z.object({
   name: z.string().trim().min(1).max(128),
   url: appHttpUrlSchema,
-  type: z.enum(['quiz', 'administration']),
+  type: z.enum(['quiz', 'administration', 'chat']),
   is_active: z.boolean().optional(),
 });
 
@@ -28,7 +28,7 @@ export const createAppSchema = z.object({
 export const updateAppBodySchema = z.object({
   name: z.string().trim().min(1).max(128),
   url: appHttpUrlSchema,
-  type: z.enum(['quiz', 'administration']),
+  type: z.enum(['quiz', 'administration', 'chat']),
   is_active: z.boolean().optional(),
 });
 

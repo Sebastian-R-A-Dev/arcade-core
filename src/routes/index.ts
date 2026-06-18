@@ -9,6 +9,7 @@ import { avatarsRouter } from '../modules/images/avatars.routes.js';
 import { challengeRouter } from '../modules/challenge/challenge.routes.js';
 import { playerRouter } from '../modules/player/player.routes.js';
 import { leaderboardRouter } from '../modules/leaderboard/leaderboard.routes.js';
+import { chatRouter } from '../modules/chat/chat.routes.js';
 import { levelMessagesRouter } from '../modules/level-messages/level-messages.routes.js';
 import { difficultiesPlayerRouter } from '../modules/difficulties/difficulties.player.routes.js';
 import { audiosRouter } from '../modules/audios/audios.routes.js';
@@ -27,6 +28,7 @@ router.use('/scores', scoresRouter);
 router.use('/users', usersRouter);
 router.use('/player', playerRouter);
 router.use('/leaderboard', leaderboardRouter);
+router.use('/chat', chatRouter);
 router.use('/level-messages', levelMessagesRouter);
 
 export const apiV1Router = router;
