@@ -157,7 +157,8 @@ export const questionsService = {
     assertImageFieldsForType(questionType.slug, payload);
     assertQuestionShape(questionType.slug, payload.question, options);
     if (questionType.slug === 'word_order') {
-      assertWordOrderPayload(payload.question, options, payload.answer);
+      const helpText = typeof payload.question === 'string' ? payload.question : '';
+      assertWordOrderPayload(helpText, options, payload.answer);
     } else {
       assertAnswerMatchesOptions(questionType.slug, options, payload.answer);
     }
@@ -210,7 +211,8 @@ export const questionsService = {
     assertImageFieldsForType(typeSlug, payload);
     assertQuestionShape(typeSlug, payload.question, options);
     if (typeSlug === 'word_order') {
-      assertWordOrderPayload(payload.question, options, payload.answer);
+      const helpText = typeof payload.question === 'string' ? payload.question : '';
+      assertWordOrderPayload(helpText, options, payload.answer);
     } else {
       assertAnswerMatchesOptions(typeSlug, options, payload.answer);
     }
