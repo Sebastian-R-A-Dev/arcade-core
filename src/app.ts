@@ -36,6 +36,10 @@ export function createApp(): express.Express {
   );
   app.use(express.json());
 
+  app.get('/', (_req, res) => {
+    res.redirect(302, '/health');
+  });
+
   setupSwagger(app);
 
   app.use('/health', healthRouter);
