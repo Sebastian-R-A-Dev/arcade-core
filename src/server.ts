@@ -8,6 +8,6 @@ const server = http.createServer(app);
 
 setupChatWebSocket(server);
 
-server.listen(env.port, () => {
+server.listen(env.port, '0.0.0.0', () => {
   console.log(`ArcadeCore listening on port ${env.port}`);
 });
